@@ -7,6 +7,7 @@ All Google Workspace apps (Docs, Sheets, Slides) use the Drive API for comment o
 
 import logging
 import asyncio
+from typing import Optional
 
 
 from auth.service_decorator import require_google_service
@@ -48,11 +49,18 @@ def create_comment_tools(app_name: str, file_id_param: str):
         @require_google_service("drive", "drive_file")
         @handle_http_errors(create_func_name, service_type="drive")
         async def create_comment(
-            service, user_google_email: str, document_id: str, comment_content: str
+            service, user_google_email: str, document_id: str, comment_content: str, quoted_file_content: Optional[str] = None
         ) -> str:
-            """Create a new comment on a Google Document."""
+            """Create a new comment on a Google Document.
+
+            Args:
+                document_id: The ID of the document to comment on
+                comment_content: The text content of the comment
+                quoted_file_content: Optional text from the document to anchor the comment to.
+                                    If provided, the comment will be attached to this specific text in the document.
+            """
             return await _create_comment_impl(
-                service, app_name, document_id, comment_content
+                service, app_name, document_id, comment_content, quoted_file_content
             )
 
         @require_google_service("drive", "drive_file")
@@ -92,11 +100,18 @@ def create_comment_tools(app_name: str, file_id_param: str):
         @require_google_service("drive", "drive_file")
         @handle_http_errors(create_func_name, service_type="drive")
         async def create_comment(
-            service, user_google_email: str, spreadsheet_id: str, comment_content: str
+            service, user_google_email: str, spreadsheet_id: str, comment_content: str, quoted_file_content: Optional[str] = None
         ) -> str:
-            """Create a new comment on a Google Spreadsheet."""
+            """Create a new comment on a Google Spreadsheet.
+
+            Args:
+                spreadsheet_id: The ID of the spreadsheet to comment on
+                comment_content: The text content of the comment
+                quoted_file_content: Optional text from the spreadsheet to anchor the comment to.
+                                    If provided, the comment will be attached to this specific text.
+            """
             return await _create_comment_impl(
-                service, app_name, spreadsheet_id, comment_content
+                service, app_name, spreadsheet_id, comment_content, quoted_file_content
             )
 
         @require_google_service("drive", "drive_file")
@@ -136,11 +151,18 @@ def create_comment_tools(app_name: str, file_id_param: str):
         @require_google_service("drive", "drive_file")
         @handle_http_errors(create_func_name, service_type="drive")
         async def create_comment(
-            service, user_google_email: str, presentation_id: str, comment_content: str
+            service, user_google_email: str, presentation_id: str, comment_content: str, quoted_file_content: Optional[str] = None
         ) -> str:
-            """Create a new comment on a Google Presentation."""
+            """Create a new comment on a Google Presentation.
+
+            Args:
+                presentation_id: The ID of the presentation to comment on
+                comment_content: The text content of the comment
+                quoted_file_content: Optional text from the presentation to anchor the comment to.
+                                    If provided, the comment will be attached to this specific text.
+            """
             return await _create_comment_impl(
-                service, app_name, presentation_id, comment_content
+                service, app_name, presentation_id, comment_content, quoted_file_content
             )
 
         @require_google_service("drive", "drive_file")
@@ -195,7 +217,7 @@ async def _read_comments_impl(service, app_name: str, file_id: str) -> str:
         service.comments()
         .list(
             fileId=file_id,
-            fields="comments(id,content,author,createdTime,modifiedTime,resolved,replies(content,author,id,createdTime,modifiedTime))",
+            fields="comments(id,content,author,createdTime,modifiedTime,resolved,quotedFileContent,replies(content,author,id,createdTime,modifiedTime))",
         )
         .execute
     )
@@ -213,11 +235,14 @@ async def _read_comments_impl(service, app_name: str, file_id: str) -> str:
         created = comment.get("createdTime", "")
         resolved = comment.get("resolved", False)
         comment_id = comment.get("id", "")
+        quoted = comment.get("quotedFileContent", {}).get("value", "")
         status = " [RESOLVED]" if resolved else ""
 
         output.append(f"Comment ID: {comment_id}")
         output.append(f"Author: {author}")
         output.append(f"Created: {created}{status}")
+        if quoted:
+            output.append(f"Anchored to: \"{quoted}\"")
         output.append(f"Content: {content}")
 
         # Add replies if any
@@ -240,19 +265,32 @@ async def _read_comments_impl(service, app_name: str, file_id: str) -> str:
 
 
 async def _create_comment_impl(
-    service, app_name: str, file_id: str, comment_content: str
+    service, app_name: str, file_id: str, comment_content: str, quoted_file_content: Optional[str] = None
 ) -> str:
-    """Implementation for creating a comment on any Google Workspace file."""
+    """Implementation for creating a comment on any Google Workspace file.
+
+    Args:
+        service: The Google Drive service instance
+        app_name: Name of the app (e.g., "document", "spreadsheet", "presentation")
+        file_id: The ID of the file to comment on
+        comment_content: The text content of the comment
+        quoted_file_content: Optional text from the document to anchor the comment to.
+                            If provided, the comment will be attached to this specific text.
+    """
     logger.info(f"[create_{app_name}_comment] Creating comment in {app_name} {file_id}")
 
     body = {"content": comment_content}
+
+    # Add quoted content for anchored comments
+    if quoted_file_content:
+        body["quotedFileContent"] = {"value": quoted_file_content}
 
     comment = await asyncio.to_thread(
         service.comments()
         .create(
             fileId=file_id,
             body=body,
-            fields="id,content,author,createdTime,modifiedTime",
+            fields="id,content,author,createdTime,modifiedTime,quotedFileContent",
         )
         .execute
     )
@@ -260,8 +298,13 @@ async def _create_comment_impl(
     comment_id = comment.get("id", "")
     author = comment.get("author", {}).get("displayName", "Unknown")
     created = comment.get("createdTime", "")
+    quoted = comment.get("quotedFileContent", {}).get("value", "")
 
-    return f"Comment created successfully!\\nComment ID: {comment_id}\\nAuthor: {author}\\nCreated: {created}\\nContent: {comment_content}"
+    result = f"Comment created successfully!\\nComment ID: {comment_id}\\nAuthor: {author}\\nCreated: {created}\\nContent: {comment_content}"
+    if quoted:
+        result += f"\\nAnchored to: \"{quoted}\""
+
+    return result
 
 
 async def _reply_to_comment_impl(
