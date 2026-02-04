@@ -7,6 +7,7 @@ All Google Workspace apps (Docs, Sheets, Slides) use the Drive API for comment o
 
 import logging
 import asyncio
+import inspect
 from typing import Optional
 
 
@@ -194,6 +195,15 @@ def create_comment_tools(app_name: str, file_id_param: str):
     create_comment.__name__ = create_func_name
     reply_to_comment.__name__ = reply_func_name
     resolve_comment.__name__ = resolve_func_name
+
+    # Explicitly set signature for create_comment to ensure optional parameter is exposed
+    # The decorators may modify the signature, so we rebuild it here
+    create_comment_params = [
+        inspect.Parameter(file_id_param, inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=str),
+        inspect.Parameter("comment_content", inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=str),
+        inspect.Parameter("quoted_file_content", inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=Optional[str], default=None),
+    ]
+    create_comment.__signature__ = inspect.Signature(parameters=create_comment_params, return_annotation=str)
 
     # Register tools with the server using the proper names
     server.tool()(read_comments)
