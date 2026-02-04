@@ -44,7 +44,9 @@ def create_comment_tools(app_name: str, file_id_param: str):
         async def read_comments(
             service, user_google_email: str, document_id: str
         ) -> str:
-            """Read all comments from a Google Document."""
+            """Read all comments from a Google Document.
+
+            Returns all comments including their anchored text if they are attached to specific content."""
             return await _read_comments_impl(service, app_name, document_id)
 
         @require_google_service("drive", "drive_file")
@@ -95,7 +97,9 @@ def create_comment_tools(app_name: str, file_id_param: str):
         async def read_comments(
             service, user_google_email: str, spreadsheet_id: str
         ) -> str:
-            """Read all comments from a Google Spreadsheet."""
+            """Read all comments from a Google Spreadsheet.
+
+            Returns all comments including their anchored text if they are attached to specific content."""
             return await _read_comments_impl(service, app_name, spreadsheet_id)
 
         @require_google_service("drive", "drive_file")
@@ -146,7 +150,9 @@ def create_comment_tools(app_name: str, file_id_param: str):
         async def read_comments(
             service, user_google_email: str, presentation_id: str
         ) -> str:
-            """Read all comments from a Google Presentation."""
+            """Read all comments from a Google Presentation.
+
+            Returns all comments including their anchored text if they are attached to specific content."""
             return await _read_comments_impl(service, app_name, presentation_id)
 
         @require_google_service("drive", "drive_file")

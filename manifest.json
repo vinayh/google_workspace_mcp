@@ -56,15 +56,15 @@
     },
     {
       "name": "google_docs",
-      "description": "Manage Google Docs through AI with capability to search, extract, list, create and copy - including templated variable replacement support"
+      "description": "Manage Google Docs through AI with capability to search, extract, list, create and copy - including templated variable replacement support and anchored comments"
     },
     {
       "name": "google_sheets",
-      "description": "Manage Google Sheets through AI with support for read, write, modify and create"
+      "description": "Manage Google Sheets through AI with support for read, write, modify, create, and anchored comments"
     },
     {
       "name": "google_slides",
-      "description": "Manage Google Slides through AI with support for creation, modification and presentation management"
+      "description": "Manage Google Slides through AI with support for creation, modification, presentation management, and anchored comments"
     },
     {
       "name": "google_forms",
