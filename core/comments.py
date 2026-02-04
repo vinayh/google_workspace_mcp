@@ -233,7 +233,8 @@ async def _read_comments_impl(service, app_name: str, file_id: str) -> str:
         service.comments()
         .list(
             fileId=file_id,
-            fields="comments(id,content,author,createdTime,modifiedTime,resolved,quotedFileContent,replies(content,author,id,createdTime,modifiedTime))",
+            fields="comments(id,content,author,createdTime,modifiedTime,resolved,anchor,quotedFileContent,replies(content,author,id,createdTime,modifiedTime))",
+            includeDeleted=False,
         )
         .execute
     )
@@ -252,6 +253,7 @@ async def _read_comments_impl(service, app_name: str, file_id: str) -> str:
         resolved = comment.get("resolved", False)
         comment_id = comment.get("id", "")
         quoted = comment.get("quotedFileContent", {}).get("value", "")
+        anchor = comment.get("anchor", "")
         status = " [RESOLVED]" if resolved else ""
 
         output.append(f"Comment ID: {comment_id}")
@@ -259,6 +261,8 @@ async def _read_comments_impl(service, app_name: str, file_id: str) -> str:
         output.append(f"Created: {created}{status}")
         if quoted:
             output.append(f"Anchored to: \"{quoted}\"")
+        if anchor and not quoted:
+            output.append(f"Anchor data: {anchor}")
         output.append(f"Content: {content}")
 
         # Add replies if any
