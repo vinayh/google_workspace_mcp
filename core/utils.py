@@ -423,6 +423,17 @@ def handle_http_errors(
                     user_google_email = kwargs.get("user_google_email", "N/A")
                     error_details = str(error)
 
+                    # Retry on 401 (expired token) - the retry will re-run
+                    # require_google_service which refreshes the token
+                    if error.resp.status == 401 and attempt < max_retries - 1:
+                        delay = base_delay * (2**attempt)
+                        logger.warning(
+                            f"Auth error (401) in {tool_name} on attempt {attempt + 1}: {error}. "
+                            f"Token likely expired mid-request. Retrying in {delay}s..."
+                        )
+                        await asyncio.sleep(delay)
+                        continue
+
                     # Check if this is an API not enabled error
                     if (
                         error.resp.status == 403
