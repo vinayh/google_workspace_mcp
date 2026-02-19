@@ -841,6 +841,7 @@ cp .env.oauth21 .env
 | `get_drive_file_content` | **Core** | Read file content (Office formats) |
 | `get_drive_file_download_url` | **Core** | Download Drive files to local disk |
 | `create_drive_file` | **Core** | Create files or fetch from URLs |
+| `create_drive_folder` | **Core** | Create empty folders in Drive or shared drives |
 | `import_to_google_doc` | **Core** | Import files (MD, DOCX, HTML, etc.) as Google Docs |
 | `share_drive_file` | **Core** | Share file with users/groups/domains/anyone |
 | `get_drive_shareable_link` | **Core** | Get shareable links for a file |
@@ -930,12 +931,13 @@ Saved files expire after 1 hour and are cleaned up automatically.
 |------|------|-------------|
 | `get_doc_content` | **Core** | Extract document text |
 | `create_doc` | **Core** | Create new documents |
-| `modify_doc_text` | **Core** | Modify document text |
+| `modify_doc_text` | **Core** | Modify document text (formatting + links) |
 | `search_docs` | Extended | Find documents by name |
 | `find_and_replace_doc` | Extended | Find and replace text |
 | `list_docs_in_folder` | Extended | List docs in folder |
 | `insert_doc_elements` | Extended | Add tables, lists, page breaks |
 | `update_paragraph_style` | Extended | Apply heading styles, lists (bulleted/numbered with nesting), and paragraph formatting |
+| `get_doc_as_markdown` | Extended | Export document as formatted Markdown with optional comments |
 | `insert_doc_image` | Complete | Insert images from Drive/URLs |
 | `update_doc_headers_footers` | Complete | Modify headers and footers |
 | `batch_update_doc` | Complete | Execute multiple operations |
@@ -1044,6 +1046,8 @@ Saved files expire after 1 hour and are cleaned up automatically.
 | `get_messages` | **Core** | Retrieve space messages |
 | `send_message` | **Core** | Send messages to spaces |
 | `search_messages` | **Core** | Search across chat history |
+| `create_reaction` | **Core** | Add emoji reaction to a message |
+| `download_chat_attachment` | Extended | Download attachment from a chat message |
 
 </td>
 <td width="50%" valign="top">
