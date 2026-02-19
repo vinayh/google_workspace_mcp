@@ -111,7 +111,26 @@ def _find_any_credentials(
             )
             return None, None
 
-        # Return credentials for the first user found
+        # Filter against ALLOWED_EMAILS if configured
+        allowed_emails_raw = os.environ.get("ALLOWED_EMAILS", "")
+        if allowed_emails_raw:
+            allowed_emails = {
+                e.strip().lower() for e in allowed_emails_raw.split(",") if e.strip()
+            }
+            original_count = len(users)
+            users = [u for u in users if u.lower() in allowed_emails]
+            if len(users) < original_count:
+                logger.warning(
+                    f"[single-user] SECURITY: Filtered {original_count - len(users)} "
+                    f"unauthorized credential(s) via ALLOWED_EMAILS"
+                )
+            if not users:
+                logger.warning(
+                    "[single-user] SECURITY: No credentials remain after ALLOWED_EMAILS filter"
+                )
+                return None, None
+
+        # Return credentials for the first allowed user found
         first_user = users[0]
         credentials = store.get_credential(first_user)
         if credentials:
@@ -513,6 +532,22 @@ def handle_auth_callback(
         user_google_email = user_info["email"]
         logger.info(f"Identified user_google_email: {user_google_email}")
 
+        # Enforce email allowlist if configured
+        allowed_emails_raw = os.environ.get("ALLOWED_EMAILS", "")
+        if allowed_emails_raw:
+            allowed_emails = {
+                e.strip().lower() for e in allowed_emails_raw.split(",") if e.strip()
+            }
+            if user_google_email.lower() not in allowed_emails:
+                logger.warning(
+                    f"SECURITY: OAuth rejected for unauthorized email: {user_google_email}"
+                )
+                credentials.token = None
+                raise ValueError(
+                    f"Email {user_google_email} is not in the allowed list. "
+                    "Contact the server administrator."
+                )
+
         # Save the credentials
         credential_store = get_credential_store()
         credential_store.store_credential(user_google_email, credentials)
@@ -652,6 +687,19 @@ def get_credentials(
                 f"[get_credentials] Single-user mode: No credentials found in {credentials_base_dir}"
             )
             return None
+
+        # Verify found credential is in allowlist (defense-in-depth)
+        allowed_emails_raw = os.environ.get("ALLOWED_EMAILS", "")
+        if allowed_emails_raw and found_user_email:
+            allowed_emails = {
+                e.strip().lower() for e in allowed_emails_raw.split(",") if e.strip()
+            }
+            if found_user_email.lower() not in allowed_emails:
+                logger.warning(
+                    f"[get_credentials] SECURITY: Refusing credentials for "
+                    f"unauthorized email {found_user_email}"
+                )
+                return None
 
         # Use the email from the credential file if not provided
         # This ensures we can save refreshed credentials even when the token is expired
