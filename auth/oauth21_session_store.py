@@ -221,6 +221,7 @@ class OAuth21SessionStore:
         state: str,
         session_id: Optional[str] = None,
         expires_in_seconds: int = 600,
+        code_verifier: Optional[str] = None,
     ) -> None:
         """Persist an OAuth state value for later validation."""
         if not state:
@@ -236,6 +237,7 @@ class OAuth21SessionStore:
                 "session_id": session_id,
                 "expires_at": expiry,
                 "created_at": now,
+                "code_verifier": code_verifier,
             }
             logger.debug(
                 "Stored OAuth state %s (expires at %s)",
@@ -290,6 +292,34 @@ class OAuth21SessionStore:
             logger.debug(
                 "Validated OAuth state %s",
                 state[:8] if len(state) > 8 else state,
+            )
+            return state_info
+
+    def consume_latest_oauth_state(self) -> Optional[Dict[str, Any]]:
+        """
+        Consume and return the most recently created OAuth state.
+
+        Used as a fallback when the callback URL is missing the state parameter
+        (e.g. in stdio mode with certain Google OAuth prompt types).
+
+        Returns:
+            State metadata dict, or None if no states are stored.
+        """
+        with self._lock:
+            self._cleanup_expired_oauth_states_locked()
+            if not self._oauth_states:
+                return None
+            latest_state = max(
+                self._oauth_states.keys(),
+                key=lambda s: self._oauth_states[s].get(
+                    "created_at",
+                    datetime.min.replace(tzinfo=timezone.utc),
+                ),
+            )
+            state_info = self._oauth_states.pop(latest_state)
+            logger.debug(
+                "Consumed latest OAuth state %s as fallback",
+                latest_state[:8] if len(latest_state) > 8 else latest_state,
             )
             return state_info
 

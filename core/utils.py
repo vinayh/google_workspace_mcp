@@ -1,14 +1,17 @@
 import io
+import json
 import logging
 import os
 import zipfile
-import xml.etree.ElementTree as ET
 import ssl
 import asyncio
 import functools
 
 from pathlib import Path
-from typing import List, Optional
+from typing import Annotated, Any, List, Optional
+
+from pydantic import BeforeValidator
+from defusedxml import ElementTree as ET
 
 from googleapiclient.errors import HttpError
 from .api_enablement import get_api_enablement_message
@@ -28,6 +31,55 @@ class UserInputError(Exception):
     """Raised for user-facing input/validation errors that shouldn't be retried."""
 
     pass
+
+
+def _coerce_json_str_to_type(v: Any, expected_type: type) -> Any:
+    """Coerce a JSON-encoded string to a specific container type."""
+    if not isinstance(v, str):
+        return v
+
+    try:
+        parsed = json.loads(v)
+    except (json.JSONDecodeError, TypeError):
+        return v
+
+    return parsed if isinstance(parsed, expected_type) else v
+
+
+def _coerce_json_str_to_list(v: Any) -> Any:
+    """Coerce a JSON-encoded string to a list.
+
+    Some MCP clients (e.g. Cowork) serialise array parameters as JSON strings
+    rather than native arrays.  This ``BeforeValidator`` transparently converts
+    ``'["a","b"]'`` → ``["a", "b"]`` so Pydantic validation succeeds.
+    """
+    return _coerce_json_str_to_type(v, list)
+
+
+StringList = Annotated[List[str], BeforeValidator(_coerce_json_str_to_list)]
+"""``List[str]`` that also accepts a JSON-encoded string of an array.
+
+Use in tool signatures instead of ``List[str]`` to work around MCP clients
+that send ``'["value"]'`` instead of ``["value"]``.
+"""
+
+
+def _coerce_json_str_to_dict(v: Any) -> Any:
+    """Coerce a JSON-encoded string to a dict.
+
+    Some MCP clients serialise dict parameters as JSON strings rather than
+    native objects.  This ``BeforeValidator`` transparently converts
+    ``'{"key":"val"}'`` -> ``{"key": "val"}`` so Pydantic validation succeeds.
+    """
+    return _coerce_json_str_to_type(v, dict)
+
+
+JsonDict = Annotated[dict[str, Any], BeforeValidator(_coerce_json_str_to_dict)]
+"""``dict`` that also accepts a JSON-encoded string of an object.
+
+Use in tool signatures instead of ``Dict[str, Any]`` to work around MCP clients
+that send ``'{"key":"val"}'`` instead of ``{"key": "val"}``.
+"""
 
 
 # Directories from which local file reads are allowed.
@@ -226,7 +278,7 @@ def extract_office_xml_text(file_bytes: bytes, mime_type: str) -> Optional[str]:
     """
     Very light-weight XML scraper for Word, Excel, PowerPoint files.
     Returns plain-text if something readable is found, else None.
-    No external deps – just std-lib zipfile + ElementTree.
+    Uses zipfile + defusedxml.ElementTree.
     """
     shared_strings: List[str] = []
     ns_excel_main = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
