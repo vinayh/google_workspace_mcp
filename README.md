@@ -1,5 +1,15 @@
 <!-- mcp-name: io.github.taylorwilsdon/workspace-mcp -->
 
+> ## Fork notes
+>
+> This fork of [taylorwilsdon/google_workspace_mcp](https://github.com/taylorwilsdon/google_workspace_mcp) adds three patches intended for a self-hosted single-user deployment. Everything else tracks upstream.
+>
+> - **`ALLOWED_EMAILS` allowlist** (`auth/google_auth.py`) — A comma-separated `ALLOWED_EMAILS` env var restricts which Google accounts can complete OAuth against this server. Enforced defense-in-depth at the callback, credential retrieval, and single-user credential discovery paths. *Rationale*: upstream has no email restriction, so anyone who can reach a publicly exposed instance could OAuth with their own Google account and have credentials stored server-side.
+> - **401 retry in `handle_http_errors`** (`core/utils.py`) — On a 401 mid-request, retry up to 3× with exponential backoff so an expired token is re-obtained transparently rather than surfaced as a tool failure. *Rationale*: upstream raises immediately on 401; long-running sessions occasionally see tokens expire between build and use.
+> - **Hardcoded `--single-user` in Docker `CMD`** (`Dockerfile`) — The container always runs in single-user mode. *Rationale*: this deployment is always single-user; removing the env-var toggle keeps the image's runtime behavior explicit.
+>
+> These patches are opt-in / additive and do not change upstream behavior when `ALLOWED_EMAILS` is unset or the image's `CMD` is overridden.
+
 <div align="center">
 
 # <span style="color:#cad8d9">Google Workspace MCP Server</span> <img src="https://github.com/user-attachments/assets/b89524e4-6e6e-49e6-ba77-00d6df0c6e5c" width="80" align="right" />
